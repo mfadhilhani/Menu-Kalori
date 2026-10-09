@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Menu Kalori BCP</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#1b1f24;--mu:#667085;--bd:#d9dee5;--ac:#0f766e;--on:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101317;--card:#1a1f25;--tx:#eef0f3;--mu:#9aa4b2;--bd:#2c333c;--ac:#2dd4bf;--on:#06211e}}
+:root[data-theme="dark"]{--bg:#101317;--card:#1a1f25;--tx:#eef0f3;--mu:#9aa4b2;--bd:#2c333c;--ac:#2dd4bf;--on:#06211e}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 14px}
+section{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+h2{font-size:15px;margin:0 0 10px}
+label{display:block;font-size:12px;color:var(--mu);margin-bottom:3px}
+input,textarea,button{font:inherit;color:inherit}
+input,textarea{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g>div.f{grid-column:1/-1}
+.r{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--bd)}
+.r .ic{width:48px;text-align:center;padding:8px 2px}
+.r .nm{flex:1 1 140px;width:auto}
+.r .kk{width:84px}
+.r .gr{width:70px}
+.r .x{width:36px;border:1px solid var(--bd);background:none;border-radius:8px;cursor:pointer}
+.hd{display:flex;gap:6px;font-size:11px;color:var(--mu);margin-bottom:4px}
+button.b{background:var(--ac);color:var(--on);border:0;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600}
+button.s{background:none;border:1px solid var(--bd);border-radius:10px;padding:9px 12px;cursor:pointer}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+textarea{min-height:360px;white-space:pre-wrap;font-family:inherit}
+.th{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.th img{height:64px;border-radius:6px;border:1px solid var(--bd)}
+.note{font-size:12px;color:var(--mu);margin-top:6px}
+#msg{font-size:13px;margin-top:8px;color:var(--ac)}
+</style>
+</head>
+<body>
+<main>
+<h1>🍽️ Generator Menu Kalori BCP</h1>
+
+<section>
+<h2>Header</h2>
+<div class="g">
+<div><label>Waktu makan</label><input id="waktu" list="l-waktu" value="Breakfast"></div>
+<div><label>Kode site</label><input id="site" list="l-site" value="DH BCP"></div>
+<div><label>Tanggal</label><input id="tgl" type="date"></div>
+<div><label>Jenis menu</label><input id="jenis" list="l-jenis" value="Reguler"></div>
+<div class="f"><label>Camp</label><input id="camp" list="l-camp" value="Camp Pelangi"></div>
+</div>
+<datalist id="l-waktu"><option value="Breakfast"><option value="Lunch"><option value="Dinner"></datalist>
+<datalist id="l-site"><option value="DH BCP"></datalist>
+<datalist id="l-jenis"><option value="Reguler"></datalist>
+<datalist id="l-camp"><option value="Camp Pelangi"></datalist>
+<div class="note">Klik kolom lalu pilih dari daftar, atau ketik sendiri. Nilai baru yang kamu ketik akan muncul di daftar lain kali.</div>
+</section>
+
+<section>
+<h2>Daftar makanan</h2>
+<div class="hd"><span style="width:48px">Ikon</span><span style="flex:1">Nama</span><span style="width:84px">kkal/100 g</span><span style="width:70px">Porsi (g)</span><span style="width:36px"></span></div>
+<div id="rows"></div>
+<datalist id="foods"></datalist>
+<div class="bar"><button class="s" id="add">+ Tambah baris</button><button class="s" id="clr">Kosongkan</button></div>
+<div class="note">Ikon terisi otomatis dari nama (bisa kamu ganti). Kalori terisi otomatis hanya jika makanan itu pernah kamu input; makanan baru diisi manual lalu tersimpan di browser ini. Baris tanpa kalori tidak ikut dijumlahkan.</div>
+</section>
+
+<section>
+<h2>Foto</h2>
+<input id="foto" type="file" accept="image/*" multiple>
+<label style="margin-top:8px;display:flex;gap:6px;align-items:center;color:var(--tx)"><input id="kol" type="checkbox" checked style="width:auto"> Gabungkan beberapa foto jadi satu baris (kolase)</label>
+<div class="th" id="th"></div>
+</section>
+
+<section>
+<h2>Hasil</h2>
+<textarea id="out" readonly></textarea>
+<div class="bar">
+<button class="b" id="kirim">Kirim foto + teks ke WhatsApp</button>
+<button class="s" id="wa">Teks saja ke WhatsApp</button>
+<button class="s" id="cp">Salin teks</button>
+</div>
+<div id="msg"></div>
+<div class="note">Untuk mengubah isi, ubah lewat form di atas.</div>
+</section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const ls={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const HARI=['Minggu','Senin','Selasa','Rabu','Kamis','Jum’at','Sabtu'];
+const BLN=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const ICONS=[['nasi','🍚'],['ikan','🐟'],['lele','🐟'],['tongkol','🐟'],['ayam','🍗'],['bebek','🍗'],['telur','🥚'],['tempe','🫔'],['tahu','🍢'],['oyong','🥬'],['sayur','🥬'],['bayam','🥬'],['capcay','🥬'],['sup','🥬'],['soto','🍲'],['sop','🍲'],['bakso','🍲'],['bubur','🥣'],['sambal','🌶️'],['kerupuk','🍥'],['krupuk','🍥'],['roti','🍞'],['selai','🍞'],['kopi','☕'],['teh','☕'],['tea','☕'],['gula','☕'],['susu','🥛'],['pisang','🍌'],['jeruk','🍊'],['apel','🍎'],['semangka','🍉'],['buah','🍎'],['mie','🍜'],['daging','🥩'],['sapi','🥩'],['udang','🦐'],['cumi','🦑'],['sosis','🌭'],['kentang','🥔'],['jagung','🌽'],['puding','🍮'],['kue','🍰'],['gorengan','🍤'],['bakwan','🍤']];
+const icon=n=>{n=n.toLowerCase();for(const [k,e] of ICONS)if(n.includes(k))return e;return n.trim()?'🍽️':''};
+const fmt=n=>n.toLocaleString('id-ID',{maximumFractionDigits:2});
+const num=s=>{const v=parseFloat(String(s).replace(',','.'));return isNaN(v)?null:v};
+
+// Data kalori tersimpan: awalnya hanya angka dari menu yang kamu kirim
+const SEED={'nasi putih':['Nasi Putih',445],'ikan bb pepes':['Ikan bb pepes',167],'tempe mendoan':['Tempe Mendoan',200],'sup oyong':['Sup Oyong',19],'bubur kacang hijau':['Bubur Kacang Hijau',108],'sambal':['Sambal',42.5],'kerupuk':['Kerupuk',53.85],'roti & selai':['Roti & selai',220]};
+let DB=Object.assign({},SEED,ls.get('kaloriDB',{}));
+function fillFoods(){$('foods').innerHTML=Object.values(DB).map(v=>`<option value="${v[0].replace(/"/g,'&quot;')}">`).join('')}
+
+// Datalist header yang bisa bertambah
+['waktu','site','jenis','camp'].forEach(id=>{
+  const dl=$('l-'+id),saved=ls.get('opt_'+id,[]);
+  saved.forEach(v=>{if(![...dl.options].some(o=>o.value===v)){const o=document.createElement('option');o.value=v;dl.appendChild(o)}});
+  $(id).addEventListener('change',()=>{const v=$(id).value.trim();if(!v)return;const a=ls.get('opt_'+id,[]);if(!a.includes(v)&&![...dl.options].some(o=>o.value===v)){a.push(v);ls.set('opt_'+id,a);const o=document.createElement('option');o.value=v;dl.appendChild(o)}});
+});
+
+function addRow(nm='',kk='',gr='100'){
+  const r=document.createElement('div');r.className='r';
+  r.innerHTML='<input class="ic" maxlength="4"><input class="nm" list="foods" placeholder="Nama makanan"><input class="kk" inputmode="decimal" placeholder="kkal"><input class="gr" inputmode="decimal"><button class="x" title="Hapus">✕</button>';
+  const [ic,n,k,g,x]=r.children;
+  n.value=nm;k.value=kk;g.value=gr;ic.value=icon(nm);
+  n.addEventListener('input',()=>{
+    if(!ic.dataset.m)ic.value=icon(n.value);
+    const hit=DB[n.value.trim().toLowerCase()];
+    if(hit&&(k.value===''||k.dataset.a)){k.value=String(hit[1]).replace('.',',');k.dataset.a=1}
+    else if(k.dataset.a){k.value='';delete k.dataset.a}
+    render();
+  });
+  ic.addEventListener('input',()=>{ic.dataset.m=1;render()});
+  k.addEventListener('input',()=>{delete k.dataset.a;render()});
+  k.addEventListener('change',()=>{const v=num(k.value),name=n.value.trim();if(name&&v!=null){DB[name.toLowerCase()]=[name,v];ls.set('kaloriDB',DB);fillFoods()}});
+  g.addEventListener('input',render);
+  x.addEventListener('click',()=>{r.remove();render()});
+  $('rows').appendChild(r);
+}
+
+function build(){
+  const d=$('tgl').value?new Date($('tgl').value+'T00:00:00'):new Date();
+  const L=[
+    `🍽️ Menu ${$('waktu').value} ${$('site').value} 🍽️`,
+    `✨ ${HARI[d.getDay()]} ${String(d.getDate()).padStart(2,'0')} ${BLN[d.getMonth()]} ${d.getFullYear()} ✨`,
+    `🌈 ${$('camp').value} 🌈`,
+    `💫 Menu ${$('jenis').value} 💫`,'',
+    '🍽️Kalori Persaji 100 gram🍽️',''
+  ];
+  let tot=0;
+  document.querySelectorAll('#rows .r').forEach(r=>{
+    const [ic,n,k,g]=r.children,name=n.value.trim();
+    if(!name)return;
+    const kv=num(k.value),gv=num(g.value)??100,e=ic.value.trim()||'🍽️';
+    if(kv==null){L.push(`${e} ${name}`,'');return}
+    const sub=kv*gv/100;tot+=sub;
+    L.push(gv===100?`${e} ${name} (${fmt(kv)} kkal)`:`${e} ${name} (${fmt(kv)} kkal/100 g) – porsi ${fmt(gv)} g = ${fmt(sub)} kkal`,'');
+  });
+  L.push(`Total Kalori = ${fmt(tot)}kkal`,'','🌹Selamat Menikmati 🌹');
+  return L.join('\n');
+}
+function render(){$('out').value=build()}
+
+// Foto
+let files=[];
+$('foto').addEventListener('change',e=>{
+  files=[...e.target.files];
+  $('th').innerHTML='';
+  files.forEach(f=>{const i=new Image();i.src=URL.createObjectURL(f);$('th').appendChild(i)});
+});
+async function collage(fs){
+  const bm=await Promise.all(fs.map(f=>createImageBitmap(f)));
+  let H=900;const raw=bm.reduce((s,b)=>s+b.width*H/b.height,0);
+  if(raw>2400)H=Math.floor(H*2400/raw);
+  const ws=bm.map(b=>Math.round(b.width*H/b.height)),c=document.createElement('canvas');
+  c.width=ws.reduce((a,b)=>a+b,0);c.height=H;
+  const x=c.getContext('2d');let off=0;
+  bm.forEach((b,i)=>{x.drawImage(b,off,0,ws[i],H);off+=ws[i]});
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.88));
+  return new File([blob],'menu-kalori.jpg',{type:'image/jpeg'});
+}
+const msg=t=>{$('msg').textContent=t};
+const copy=async t=>{try{await navigator.clipboard.writeText(t);return true}catch(e){return false}};
+
+$('kirim').addEventListener('click',async()=>{
+  const text=build(),copied=await copy(text);
+  let fs=files;
+  if(!fs.length){msg('Belum ada foto, membuka WhatsApp dengan teks saja.');window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');return}
+  try{if(fs.length>1&&$('kol').checked)fs=[await collage(fs)]}catch(e){}
+  if(navigator.canShare&&navigator.canShare({files:fs})){
+    try{await navigator.share({files:fs,text});msg('Dibuka. Jika teks tidak muncul sebagai keterangan foto, tempel saja'+(copied?' (teks sudah disalin).':'.'));return}
+    catch(e){if(e.name==='AbortError')return}
+  }
+  msg('Browser ini tidak bisa mengirim foto langsung ke WhatsApp. Teks '+(copied?'sudah disalin':'ada di kotak hasil')+'; buka WhatsApp, lampirkan foto, lalu tempel.');
+});
+$('wa').addEventListener('click',()=>window.open('https://wa.me/?text='+encodeURIComponent(build()),'_blank'));
+$('cp').addEventListener('click',async()=>msg(await copy(build())?'Teks disalin.':'Gagal menyalin, salin manual dari kotak hasil.'));
+
+// Init
+const t=new Date();
+$('tgl').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+['waktu','site','jenis','camp','tgl','kol'].forEach(id=>$(id).addEventListener('input',render));
+$('add').addEventListener('click',()=>{addRow();render()});
+$('clr').addEventListener('click',()=>{$('rows').innerHTML='';for(let i=0;i<6;i++)addRow();render()});
+fillFoods();
+['Nasi Putih','Ikan bb pepes','Tempe Mendoan','Sup Oyong','Bubur Kacang Hijau','Sambal','Kerupuk','Roti & selai'].forEach(n=>{
+  addRow(n,String(DB[n.toLowerCase()][1]).replace('.',','));
+  const k=$('rows').lastChild.children[2];k.dataset.a=1;
+});
+addRow('Gula, Kopi, Tea');
+render();
+</script>
+</body>
+</html>
