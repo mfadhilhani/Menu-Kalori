@@ -307,7 +307,10 @@
         <canvas id="poster"></canvas>
         <h3 class="ph">Poster kode warna (kolase)</h3>
         <canvas id="kolase"></canvas>
-        <div class="bar"><button class="b" id="pDl">Unduh poster biasa</button><button class="b" id="kDl">Unduh poster kode warna</button><button class="s" id="pWa">Kirim kedua poster + teks ke WhatsApp</button></div>
+        <div class="bar">
+          <button class="b" id="pDl">Unduh poster biasa</button><button class="b" id="kDl">Unduh poster kode warna</button><button class="s" id="pWa">Kirim poster biasa + laporan kalori ke WhatsApp</button
+          ><button class="s" id="kWa">Kirim poster kode warna + pesan kode warna ke WhatsApp</button>
+        </div>
         <div id="msg3"></div>
         <div class="note" id="pNote">
           Urutan: Menu 1 = lingkaran paling atas (kanan), 2 = kiri, 3 = kanan bawah, 4 = kiri bawah. Satu isian menghasilkan dua poster. Kalori per 100 g terisi otomatis kalau makanannya sudah pernah kamu input, kalau belum isi manual;
@@ -340,6 +343,13 @@
         </div>
         <div id="msg"></div>
         <div class="note">Untuk mengubah isi, ubah lewat form di atas.</div>
+      </section>
+
+      <section>
+        <h2>Pesan kode warna</h2>
+        <textarea id="outW" readonly style="min-height: 300px"></textarea>
+        <div class="note" id="infoW"></div>
+        <div class="bar"><button class="s" id="cpW">Salin pesan kode warna</button><button class="s" id="waW">Teks saja ke WhatsApp</button></div>
       </section>
     </main>
 
@@ -510,38 +520,55 @@
         $("rows").appendChild(r);
       }
 
-      function build() {
+      const EXC = /sambal|sambel|kerupuk|krupuk/i,
+        LIM = 1800;
+      let WINFO = { skip: false, all: 0, tot: 0 };
+      function build(warna) {
         const d = $("tgl").value ? new Date($("tgl").value + "T00:00:00") : new Date();
-        const L = [
-          `🍽️ Menu ${$("waktu").value} ${$("site").value} 🍽️`,
-          `✨ ${HARI[d.getDay()]} ${String(d.getDate()).padStart(2, "0")} ${BLN[d.getMonth()]} ${d.getFullYear()} ✨`,
-          `🌈 ${$("camp").value} 🌈`,
-          `💫 Menu ${$("jenis").value} 💫`,
-          "",
-          "🍽️Kalori Persaji 100 gram🍽️",
-          "",
-        ];
+        const dd = String(d.getDate()).padStart(2, "0");
+        const rows = [...document.querySelectorAll("#rows .r")]
+          .map((r) => {
+            const [ic, n, k, g] = r.children;
+            return { name: n.value.trim(), kv: num(k.value), gv: num(g.value) ?? 100, e: ic.value.trim() || "🍽️" };
+          })
+          .filter((x) => x.name);
+        let all = 0;
+        rows.forEach((x) => {
+          if (x.kv != null) all += (x.kv * x.gv) / 100;
+        });
+        const skip = !!warna && all >= LIM;
+        const L = warna
+          ? [`Kode warna makanan ${$("waktu").value} site BCP`, `${HARI[d.getDay()]}, ${dd} ${BLN[d.getMonth()]} ${d.getFullYear()}`, "", "🍽️Kalori Persaji 100 gram🍽️", ""]
+          : [
+              `🍽️ Menu ${$("waktu").value} ${$("site").value} 🍽️`,
+              `✨ ${HARI[d.getDay()]} ${dd} ${BLN[d.getMonth()]} ${d.getFullYear()} ✨`,
+              `🌈 ${$("camp").value} 🌈`,
+              `💫 Menu ${$("jenis").value} 💫`,
+              "",
+              "🍽️Kalori Persaji 100 gram🍽️",
+              "",
+            ];
         let tot = 0;
-        document.querySelectorAll("#rows .r").forEach((r) => {
-          const [ic, n, k, g] = r.children,
-            name = n.value.trim();
-          if (!name) return;
-          const kv = num(k.value),
-            gv = num(g.value) ?? 100,
-            e = ic.value.trim() || "🍽️";
-          if (kv == null) {
-            L.push(`${e} ${name}`, "");
+        rows.forEach((x) => {
+          if (x.kv == null) {
+            L.push(`${x.e} ${x.name}`, "");
             return;
           }
-          const sub = (kv * gv) / 100;
-          tot += sub;
-          L.push(gv === 100 ? `${e} ${name} (${fmt(kv)} kkal)` : `${e} ${name} (${fmt(kv)} kkal/100 g) – porsi ${fmt(gv)} g = ${fmt(sub)} kkal`, "");
+          const sub = (x.kv * x.gv) / 100;
+          if (!(skip && EXC.test(x.name))) tot += sub;
+          L.push(x.gv === 100 ? `${x.e} ${x.name} (${fmt(x.kv)} kkal)` : `${x.e} ${x.name} (${fmt(x.kv)} kkal/100 g) – porsi ${fmt(x.gv)} g = ${fmt(sub)} kkal`, "");
         });
         L.push(`Total Kalori = ${fmt(tot)}kkal`, "", "🌹Selamat Menikmati 🌹");
+        if (warna) WINFO = { skip, all, tot };
         return L.join("\n");
       }
+
       function render() {
         $("out").value = build();
+        $("outW").value = build(true);
+        $("infoW").textContent = WINFO.skip
+          ? "Total semua makanan " + fmt(WINFO.all) + " kkal (1.800 atau lebih), jadi sambal dan kerupuk tidak dihitung. Total di pesan: " + fmt(WINFO.tot) + " kkal. Keduanya tetap tampil di daftar."
+          : "Total semua makanan " + fmt(WINFO.all) + " kkal, di bawah 1.800, jadi semuanya dihitung.";
         cardsSoon();
       }
 
@@ -985,15 +1012,16 @@
         await posterFile();
         saveCanvas($("poster"), "menu-" + meal().toLowerCase() + "-" + ($("tgl").value || "hari-ini") + ".png", "msg3");
       });
-      $("pWa").addEventListener("click", async () => {
-        const f1 = await posterFile(),
-          f2 = await kolaseFile(),
-          files = f2 ? [f1, f2] : [f1],
-          text = build(),
-          copied = await copy(text);
-        if (navigator.canShare && navigator.canShare({ files })) {
+      async function shareWA(getFile, text) {
+        const f = await getFile();
+        if (!f) {
+          msg3("Isi dulu nama atau foto minimal satu menu.");
+          return;
+        }
+        const copied = await copy(text);
+        if (navigator.canShare && navigator.canShare({ files: [f] })) {
           try {
-            await navigator.share({ files, text });
+            await navigator.share({ files: [f], text });
             msg3("Dibuka. Jika teks tidak muncul sebagai keterangan, tempel saja" + (copied ? " (teks sudah disalin)." : "."));
             return;
           } catch (e) {
@@ -1001,7 +1029,11 @@
           }
         }
         msg3("Browser ini tidak bisa mengirim gambar langsung ke WhatsApp. Unduh posternya dulu; teks " + (copied ? "sudah disalin" : "ada di kotak hasil") + ", tinggal tempel di WhatsApp.");
-      });
+      }
+      $("pWa").addEventListener("click", () => shareWA(posterFile, build()));
+      $("kWa").addEventListener("click", () => shareWA(kolaseFile, build(true)));
+      $("cpW").addEventListener("click", async () => msg3((await copy(build(true))) ? "Pesan kode warna disalin." : "Gagal menyalin, salin manual dari kotak pesan."));
+      $("waW").addEventListener("click", () => window.open("https://wa.me/?text=" + encodeURIComponent(build(true)), "_blank"));
       const msg3 = (t) => {
         $("msg3").textContent = t;
       };
