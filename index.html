@@ -336,6 +336,10 @@
       <section>
         <h2>Hasil</h2>
         <textarea id="out" readonly></textarea>
+        <label style="margin-top: 8px; display: flex; gap: 6px; align-items: center; color: var(--tx)"
+          ><input id="rule" type="checkbox" checked style="width: auto" /> Aturan: kalau total 1.800 kkal atau lebih, sambal dan kerupuk tidak dihitung di total</label
+        >
+        <div class="note" id="infoW"></div>
         <div class="bar">
           <button class="b" id="kirim">Kirim foto + teks ke WhatsApp</button>
           <button class="s" id="wa">Teks saja ke WhatsApp</button>
@@ -347,8 +351,7 @@
 
       <section>
         <h2>Pesan kode warna</h2>
-        <textarea id="outW" readonly style="min-height: 300px"></textarea>
-        <div class="note" id="infoW"></div>
+        <textarea id="outW" readonly style="min-height: 70px"></textarea>
         <div class="bar"><button class="s" id="cpW">Salin pesan kode warna</button><button class="s" id="waW">Teks saja ke WhatsApp</button></div>
       </section>
     </main>
@@ -526,6 +529,7 @@
       function build(warna) {
         const d = $("tgl").value ? new Date($("tgl").value + "T00:00:00") : new Date();
         const dd = String(d.getDate()).padStart(2, "0");
+        if (warna) return `Kode warna makanan ${$("waktu").value} site BCP\n${HARI[d.getDay()]}, ${dd} ${BLN[d.getMonth()]} ${d.getFullYear()}`;
         const rows = [...document.querySelectorAll("#rows .r")]
           .map((r) => {
             const [ic, n, k, g] = r.children;
@@ -536,18 +540,16 @@
         rows.forEach((x) => {
           if (x.kv != null) all += (x.kv * x.gv) / 100;
         });
-        const skip = !!warna && all >= LIM;
-        const L = warna
-          ? [`Kode warna makanan ${$("waktu").value} site BCP`, `${HARI[d.getDay()]}, ${dd} ${BLN[d.getMonth()]} ${d.getFullYear()}`, "", "🍽️Kalori Persaji 100 gram🍽️", ""]
-          : [
-              `🍽️ Menu ${$("waktu").value} ${$("site").value} 🍽️`,
-              `✨ ${HARI[d.getDay()]} ${dd} ${BLN[d.getMonth()]} ${d.getFullYear()} ✨`,
-              `🌈 ${$("camp").value} 🌈`,
-              `💫 Menu ${$("jenis").value} 💫`,
-              "",
-              "🍽️Kalori Persaji 100 gram🍽️",
-              "",
-            ];
+        const skip = $("rule").checked && all >= LIM;
+        const L = [
+          `🍽️ Menu ${$("waktu").value} ${$("site").value} 🍽️`,
+          `✨ ${HARI[d.getDay()]} ${dd} ${BLN[d.getMonth()]} ${d.getFullYear()} ✨`,
+          `🌈 ${$("camp").value} 🌈`,
+          `💫 Menu ${$("jenis").value} 💫`,
+          "",
+          "🍽️Kalori Persaji 100 gram🍽️",
+          "",
+        ];
         let tot = 0;
         rows.forEach((x) => {
           if (x.kv == null) {
@@ -559,16 +561,18 @@
           L.push(x.gv === 100 ? `${x.e} ${x.name} (${fmt(x.kv)} kkal)` : `${x.e} ${x.name} (${fmt(x.kv)} kkal/100 g) – porsi ${fmt(x.gv)} g = ${fmt(sub)} kkal`, "");
         });
         L.push(`Total Kalori = ${fmt(tot)}kkal`, "", "🌹Selamat Menikmati 🌹");
-        if (warna) WINFO = { skip, all, tot };
+        WINFO = { skip, all, tot };
         return L.join("\n");
       }
 
       function render() {
         $("out").value = build();
         $("outW").value = build(true);
-        $("infoW").textContent = WINFO.skip
-          ? "Total semua makanan " + fmt(WINFO.all) + " kkal (1.800 atau lebih), jadi sambal dan kerupuk tidak dihitung. Total di pesan: " + fmt(WINFO.tot) + " kkal. Keduanya tetap tampil di daftar."
-          : "Total semua makanan " + fmt(WINFO.all) + " kkal, di bawah 1.800, jadi semuanya dihitung.";
+        $("infoW").textContent = !$("rule").checked
+          ? ""
+          : WINFO.skip
+            ? "Total semua makanan " + fmt(WINFO.all) + " kkal (1.800 atau lebih), jadi sambal dan kerupuk tidak dihitung di Total Kalori. Total di laporan: " + fmt(WINFO.tot) + " kkal. Keduanya tetap tampil di daftar."
+            : "Total semua makanan " + fmt(WINFO.all) + " kkal, di bawah 1.800, jadi semuanya dihitung.";
         cardsSoon();
       }
 
@@ -1145,6 +1149,7 @@
       const t = new Date();
       $("tgl").value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
       ["waktu", "site", "jenis", "camp", "tgl", "kol"].forEach((id) => $(id).addEventListener("input", render));
+      $("rule").addEventListener("change", render);
       $("add").addEventListener("click", () => {
         addRow();
         render();
