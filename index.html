@@ -267,6 +267,9 @@
   <body>
     <main>
       <h1>🍽️ Generator Menu Kalori BCP</h1>
+      <div class="note" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 12px">
+        <span id="draftNote">Isian akan tersimpan otomatis di browser ini.</span><button class="s" id="newDraft" style="padding: 4px 10px; font-size: 12px">Mulai baru</button>
+      </div>
 
       <section>
         <h2>Header</h2>
@@ -574,12 +577,15 @@
             ? "Total semua makanan " + fmt(WINFO.all) + " kkal (1.800 atau lebih), jadi sambal dan kerupuk tidak dihitung di Total Kalori. Total di laporan: " + fmt(WINFO.tot) + " kkal. Keduanya tetap tampil di daftar."
             : "Total semua makanan " + fmt(WINFO.all) + " kkal, di bawah 1.800, jadi semuanya dihitung.";
         cardsSoon();
+        saveSoon();
       }
 
       // Foto
       let files = [];
       $("foto").addEventListener("change", (e) => {
         files = [...e.target.files];
+        if (files.length) idb.set("foto", files);
+        else idb.del("foto");
         $("th").innerHTML = "";
         files.forEach((f) => {
           const i = new Image();
@@ -827,6 +833,7 @@
       const MEALS = { Breakfast: { bg: BG, slots: SL4 }, Dinner: { bg: BG3, slots: SL6 } };
       const mk = (s) => s.map(() => ({ name: "", img: null, kk: null, desc: "" }));
       const PSM = { Breakfast: mk(SL4), Dinner: mk(SL6) };
+      const SUI = { Breakfast: [], Dinner: [] };
       const meal = () => $("waktu").value,
         curPS = () => PSM[meal()],
         bgc = {};
@@ -858,6 +865,7 @@
             k = ch[2],
             ds = din ? ch[3] : null,
             f = ch[ch.length - 1];
+          SUI[m][i] = { t, k, ds, f, P };
           t.addEventListener("input", () => {
             P.name = t.value;
             const hit = DB[t.value.trim().toLowerCase()];
@@ -892,6 +900,8 @@
             });
           f.addEventListener("change", async () => {
             P.img = null;
+            if (f.files[0]) idb.set("slot:" + m + ":" + i, f.files[0]);
+            else idb.del("slot:" + m + ":" + i);
             if (f.files[0]) {
               try {
                 P.img = await createImageBitmap(f.files[0]);
@@ -910,6 +920,7 @@
           drawPoster();
           drawKolase();
         }, 150);
+        saveSoon();
       }
       function drawB(X, s, p) {
         if (p.img) {
@@ -1145,6 +1156,171 @@
         saveCanvas($("kolase"), "menu-" + meal().toLowerCase() + "-kode-warna-" + ($("tgl").value || "hari-ini") + ".png", "msg3");
       });
 
+      // Simpan otomatis (draf) dan pulihkan saat halaman dibuka lagi
+      const idb = {
+        db: null,
+        open() {
+          return (
+            this.db ||
+            (this.db = new Promise((res, rej) => {
+              try {
+                const r = indexedDB.open("menuKalori", 1);
+                r.onupgradeneeded = () => r.result.createObjectStore("f");
+                r.onsuccess = () => res(r.result);
+                r.onerror = () => rej(r.error);
+              } catch (e) {
+                rej(e);
+              }
+            }))
+          );
+        },
+        async op(mode, fn) {
+          try {
+            const d = await this.open();
+            return await new Promise((res) => {
+              const t = d.transaction("f", mode);
+              const rq = fn(t.objectStore("f"));
+              t.oncomplete = () => res(rq ? rq.result : true);
+              t.onerror = () => res(null);
+              t.onabort = () => res(null);
+            });
+          } catch (e) {
+            return null;
+          }
+        },
+        set(k, v) {
+          return this.op("readwrite", (s) => s.put(v, k));
+        },
+        get(k) {
+          return this.op("readonly", (s) => s.get(k));
+        },
+        del(k) {
+          return this.op("readwrite", (s) => s.delete(k));
+        },
+        clear() {
+          return this.op("readwrite", (s) => s.clear());
+        },
+      };
+      const todayStr = () => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      };
+      const hhmm = (t) => {
+        const x = new Date(t);
+        return String(x.getHours()).padStart(2, "0") + "." + String(x.getMinutes()).padStart(2, "0");
+      };
+      let ready = false,
+        st = 0;
+      function collect() {
+        return {
+          v: 1,
+          t: Date.now(),
+          day: todayStr(),
+          hdr: { waktu: $("waktu").value, site: $("site").value, jenis: $("jenis").value, camp: $("camp").value, tgl: $("tgl").value, rule: $("rule").checked, kol: $("kol").checked },
+          rows: [...document.querySelectorAll("#rows .r")].map((r) => {
+            const [ic, n, k, g] = r.children;
+            return { n: n.value, k: k.value, g: g.value, i: ic.value, m: !!ic.dataset.m, a: !!k.dataset.a };
+          }),
+          ps: Object.fromEntries(Object.keys(SUI).map((m) => [m, SUI[m].map((u) => ({ n: u.t.value, k: u.k.value, d: u.ds ? u.ds.value : "", a: !!u.k.dataset.a }))])),
+        };
+      }
+      function saveNow() {
+        if (!ready) return;
+        clearTimeout(st);
+        const d = collect();
+        ls.set("draft", d);
+        $("draftNote").textContent = "Isian tersimpan otomatis di browser ini (terakhir " + hhmm(d.t) + ").";
+      }
+      function saveSoon() {
+        if (!ready) return;
+        clearTimeout(st);
+        st = setTimeout(saveNow, 400);
+      }
+      function setFile(input, arr) {
+        try {
+          const dt = new DataTransfer();
+          arr.forEach((b) => dt.items.add(b instanceof File ? b : new File([b], "foto.jpg", { type: b.type || "image/jpeg" })));
+          input.files = dt.files;
+        } catch (e) {}
+      }
+      async function restore() {
+        const d = ls.get("draft", null);
+        if (!d || d.v !== 1) return null;
+        const H = d.hdr || {};
+        ["waktu", "site", "jenis", "camp"].forEach((id) => {
+          if (H[id] != null && H[id] !== "") $(id).value = H[id];
+        });
+        $("rule").checked = H.rule !== false;
+        $("kol").checked = H.kol !== false;
+        const old = d.day !== todayStr();
+        if (!old && H.tgl) $("tgl").value = H.tgl;
+        if (Array.isArray(d.rows)) {
+          $("rows").innerHTML = "";
+          d.rows.forEach((r) => {
+            addRow(r.n, r.k, r.g);
+            const c = $("rows").lastChild.children;
+            c[0].value = r.i;
+            if (r.m) c[0].dataset.m = 1;
+            if (r.a) c[2].dataset.a = 1;
+          });
+          if (!d.rows.length) addRow();
+        }
+        for (const m of Object.keys(SUI)) {
+          const L = (d.ps && d.ps[m]) || [];
+          for (let i = 0; i < SUI[m].length; i++) {
+            const u = SUI[m][i],
+              s = L[i] || {};
+            u.t.value = s.n || "";
+            u.k.value = s.k || "";
+            if (u.ds) u.ds.value = s.d || "";
+            if (s.a) u.k.dataset.a = 1;
+            u.P.name = u.t.value;
+            u.P.kk = num(u.k.value);
+            u.P.desc = u.ds ? u.ds.value : "";
+            const b = await idb.get("slot:" + m + ":" + i);
+            if (b) {
+              try {
+                u.P.img = await createImageBitmap(b);
+                setFile(u.f, [b]);
+              } catch (e) {}
+            }
+          }
+        }
+        const fb = await idb.get("foto");
+        if (Array.isArray(fb) && fb.length) {
+          files = fb;
+          $("th").innerHTML = "";
+          fb.forEach((f) => {
+            const im = new Image();
+            im.src = URL.createObjectURL(f);
+            $("th").appendChild(im);
+          });
+          setFile($("foto"), fb);
+        }
+        return { old, t: d.t };
+      }
+      addEventListener("pagehide", saveNow);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") saveNow();
+      });
+      let nd = 0;
+      $("newDraft").addEventListener("click", async () => {
+        const b = $("newDraft");
+        if (!nd) {
+          nd = setTimeout(() => {
+            nd = 0;
+            b.textContent = "Mulai baru";
+          }, 4000);
+          b.textContent = "Yakin? Klik lagi untuk hapus semua isian";
+          return;
+        }
+        clearTimeout(nd);
+        ready = false;
+        ls.set("draft", null);
+        await idb.clear();
+        location.reload();
+      });
+
       // Init
       const t = new Date();
       $("tgl").value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
@@ -1168,6 +1344,19 @@
       });
       addRow("Gula, Kopi, Tea");
       render();
+      (async () => {
+        let info = null;
+        try {
+          info = await restore();
+        } catch (e) {
+          info = null;
+        }
+        togglePoster();
+        render();
+        ready = true;
+        saveNow();
+        if (info) $("draftNote").textContent = info.old ? "Isian dari hari sebelumnya dipulihkan; tanggal diatur ke hari ini (disimpan " + hhmm(info.t) + ")." : "Isian terakhir dipulihkan (disimpan " + hhmm(info.t) + ").";
+      })();
     </script>
   </body>
 </html>
